@@ -1,3 +1,5 @@
+Repo for hBN PL project
+
 **Plan for hBN PL project**
 - each emitter has a couple of frames
 - saving spectra bundles all frames of one emitter into one file
@@ -27,4 +29,5 @@ Condiitons for bad spectra:
 - noisy
 - no clear ZPL
 - double ZPL (likely also double PSB)
+
 
