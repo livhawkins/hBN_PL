@@ -153,4 +153,5 @@ reports/
 *.cover
 .idea_modules/
 
-# End of file
+# End of file#do not add data to git
+data/
