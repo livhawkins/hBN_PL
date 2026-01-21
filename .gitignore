@@ -1,2 +1,6 @@
 #do not add data to git
 data/
+processed_data/
+raw_data/
+
+
