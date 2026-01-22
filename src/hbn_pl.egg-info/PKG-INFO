@@ -1,3 +1,20 @@
 Metadata-Version: 2.4
 Name: hbn_pl
-Version: 0.0.0
+Version: 0.0.1
+Summary: Simple hbn PL project for the PML course
+Author-email: "Liv Hawkins, Emma Huntley, Magda Glinka" <oh306@cam.ac.uk>
+License: MIT
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: numpy
+Requires-Dist: matplotlib
+
+Repo for hBN PL project
+
+
+
+
+
+
+
+

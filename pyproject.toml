@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
 authors = [
-    { name = "Liv Hawkins", "Emma Huntley", "Magda Glinka", email = "oh306@cam.ac.uk" }
+    { name = "Liv Hawkins, Emma Huntley, Magda Glinka", email = "oh306@cam.ac.uk" }
 ]
 dependencies = [
     "numpy",
