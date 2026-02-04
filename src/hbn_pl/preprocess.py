@@ -27,10 +27,10 @@ def detect_bad_frames_simple(frames: np.ndarray, drop_fraction: float) -> list[i
     Returns:
         list[int]: Indices of frames considered bad.
     '''
+    print("Running simple bad frame detection...")
     frame_intensity = np.sum(frames, axis=1)
     median = np.median(frame_intensity)
     bad_frames = np.where(frame_intensity < drop_fraction * median)[0] # Flag frames below drop_fraction of of median
-    
     print(f"Detected bad frames due to intensity drop {drop_fraction}: {bad_frames}")
     return bad_frames
     
@@ -49,6 +49,7 @@ def detect_bad_frames_complex(frames: np.ndarray, window: int, drop_fraction: fl
     Returns:
         list[int]: Indices of frames considered bad.
     """
+    print("Running complex bad frame detection...")
     n_frames = frames.shape[0]
     frame_intensity = np.sum(frames, axis=1)
     bad_frames = []
@@ -81,10 +82,12 @@ def remove_frames(frames: np.ndarray, frames_to_remove: list[int]) -> np.ndarray
     Returns:
         np.ndarray: Frames with specified frames removed.
     '''
+    print(f"Removing {len(frames_to_remove)} frames: {frames_to_remove}")
     if frames_to_remove is None or len(frames_to_remove) == 0:
         return frames
-
-    return np.delete(frames, frames_to_remove, axis=0)
+    deleted = np.delete(frames, frames_to_remove, axis=0)
+    print("Successfully removed bad frames.")
+    return deleted
 
 
 def detect_cosmic_frames(frames: np.ndarray, sigma_threshold: float, min_outliers: int) -> list[int]:
@@ -99,6 +102,7 @@ def detect_cosmic_frames(frames: np.ndarray, sigma_threshold: float, min_outlier
     Returns:
         list[int]: indices of frames likely containing cosmic rays
     """
+    print("Running cosmic ray detection...")
     cosmic_frames = []
     n_frames = frames.shape[0]
 
@@ -131,7 +135,7 @@ def remove_cosmic_rays(frames: np.ndarray, cosmic_frames: list[int], sigma: floa
     Returns:
         np.ndarray: cleaned frames
     """
-
+    print(f"Removing cosmic rays from {len(cosmic_frames)} frames: {cosmic_frames}")
     if len(cosmic_frames) == 0:
         return frames
 
@@ -159,6 +163,7 @@ def remove_cosmic_rays(frames: np.ndarray, cosmic_frames: list[int], sigma: floa
         plt.title(f"Frame {i}")
         plt.show()
 
+    print("Successfully removed cosmic rays.")
     return frames_clean
 
 
@@ -172,9 +177,12 @@ def background_subtract(frames: np.ndarray, bg_slice: tuple[int, int]) -> np.nda
     Returns:
         np.ndarray: Background-subtracted frames.
     '''
+    print("Performing background subtraction...")
     start, stop = bg_slice
     background = np.mean(frames[:, start:stop], axis=1)
-    return frames - background[:, None]
+    corrected = frames - background[:, None]
+    print("Successfully subtracted background.")
+    return corrected
 
 
 def normalise(frames: np.ndarray) -> np.ndarray:
@@ -186,8 +194,10 @@ def normalise(frames: np.ndarray) -> np.ndarray:
     Returns:
         np.ndarray: Normalised frames.
     '''
+    print("Normalising frames...")
     max_vals = np.max(frames, axis=1)
     frames_norm = frames / (max_vals[:, None] + 1e-20)
+    print("Successfully normalised frames.")
     return frames_norm
 
 
@@ -200,7 +210,9 @@ def average_and_normalise(frames: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     Result:
         tuple[np.ndarray, np.ndarray]: Averaged spectrum and normalised averaged spectrum.
     '''
+    print("Averaging and normalising frames into a single spectrum...")
     avg = np.mean(frames, axis=0)
     max_val = np.max(avg)
     avg_norm = avg / (max_val + 1e-20)
+    print("Successfully averaged and normalised frames.")   
     return avg, avg_norm
