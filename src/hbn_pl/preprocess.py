@@ -122,6 +122,37 @@ def detect_cosmic_frames(frames: np.ndarray, sigma_threshold: float, min_outlier
     print(f"Detected {len(cosmic_frames)} cosmic ray frames: {cosmic_frames}")
     return cosmic_frames
 
+def detect_cosmic_frames2(frames: np.ndarray, sigma_threshold: float, min_outliers: int) -> list[int]:
+    """
+    Automatically detect frames containing cosmic rays using neighbour comparison.
+
+    Args:
+        frames (np.ndarray): shape (n_frames, n_pixels), temporarily normalised spectra
+        detect_sigma (float): detection threshold for cosmic rays; higher = fewer detections
+        min_outliers (int): minimum number of spiky pixels to flag a frame as containing cosmic rays
+
+    Returns:
+        list[int]: indices of frames likely containing cosmic rays
+    """
+    print("Running cosmic ray detection...")
+    cosmic_frames = []
+    n_frames = frames.shape[0]
+
+    for i in range(1, n_frames - 1):
+        neighbour_median = np.median([frames[i - 1], frames[i + 1]], axis=0) #make a clean reference spectrum from
+        #the median of neighbouring frames. Cosmic rays only appear in one frame so won't affect the median
+        residual = frames[i] - neighbour_median #difference between current frame and reference
+        #cosmic ray would produce a large residual
+        mad = np.median(np.abs(residual)) + 1e-12 #Estimate the typical noise level using the Median Absolute Deviation (MAD)
+        z_score = residual / mad #convert to a z score in units of MAD; cosmic rays give |z| >> 1
+
+        n_spikes = np.sum(np.abs(z_score) > sigma_threshold) #count how many wavelength pixels exceed the detection threshold
+
+        if n_spikes >= min_outliers: #flag if enough high-significance outliers are present
+            cosmic_frames.append(i)
+
+    print(f"Detected {len(cosmic_frames)} cosmic ray frames: {cosmic_frames}")
+    return cosmic_frames
 
 def remove_cosmic_rays(frames: np.ndarray, cosmic_frames: list[int], sigma: float) -> np.ndarray:
     """
