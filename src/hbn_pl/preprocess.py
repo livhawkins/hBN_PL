@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.signal import find_peaks, peak_widths
 import spectrapepper as spep
 import matplotlib.pyplot as plt
 
@@ -122,37 +123,59 @@ def detect_cosmic_frames(frames: np.ndarray, sigma_threshold: float, min_outlier
     print(f"Detected {len(cosmic_frames)} cosmic ray frames: {cosmic_frames}")
     return cosmic_frames
 
-def detect_cosmic_frames2(frames: np.ndarray, sigma_threshold: float, min_outliers: int) -> list[int]:
-    """
-    Automatically detect frames containing cosmic rays using neighbour comparison.
-
-    Args:
-        frames (np.ndarray): shape (n_frames, n_pixels), temporarily normalised spectra
-        detect_sigma (float): detection threshold for cosmic rays; higher = fewer detections
-        min_outliers (int): minimum number of spiky pixels to flag a frame as containing cosmic rays
-
+def detect_cosmic_frames2(frames: np.ndarray, wavelength, prominence_threshold: float, fwhm_threshold: float, n_peaks: int) -> tuple[list[int], list[float]]:
+    '''
+    Alternative method to detect cosmic ray frames by looking for very narrow peaks in the spectrum.
+    Args:        frames (np.ndarray): shape (n_frames, n_pixels), temporarily normalised spectra
+        wavelength (np.ndarray): 1D array of wavelength values corresponding to the spectral pixels
+        prominence_threshold (float): minimum prominence for peak detection; higher = fewer peaks detected
+        fwhm_threshold (float): maximum FWHM for a peak to be considered a cosmic ray; lower = more aggressive detection
+        n_peaks (int): number of top peaks to consider in each frame; higher = more peaks checked for cosmic ray criterion
     Returns:
         list[int]: indices of frames likely containing cosmic rays
-    """
-    print("Running cosmic ray detection...")
+        list[float]: wavelengths of detected cosmic rays
+    '''
+
     cosmic_frames = []
+    cosmic_location = []
     n_frames = frames.shape[0]
 
-    for i in range(1, n_frames - 1):
-        neighbour_median = np.median([frames[i - 1], frames[i + 1]], axis=0) #make a clean reference spectrum from
-        #the median of neighbouring frames. Cosmic rays only appear in one frame so won't affect the median
-        residual = frames[i] - neighbour_median #difference between current frame and reference
-        #cosmic ray would produce a large residual
-        mad = np.median(np.abs(residual)) + 1e-12 #Estimate the typical noise level using the Median Absolute Deviation (MAD)
-        z_score = residual / mad #convert to a z score in units of MAD; cosmic rays give |z| >> 1
+    
+    for frame_idx in range(n_frames):
 
-        n_spikes = np.sum(np.abs(z_score) > sigma_threshold) #count how many wavelength pixels exceed the detection threshold
+        spectrum = frames[frame_idx]
 
-        if n_spikes >= min_outliers: #flag if enough high-significance outliers are present
-            cosmic_frames.append(i)
+        # Find peaks in this frame
+        peaks, properties = find_peaks(
+            spectrum,
+            prominence=prominence_threshold
+        )
+
+        if len(peaks) == 0:
+            continue
+
+        # Sort peaks by prominence (descending)
+        prominences = properties["prominences"]
+        sorted_idx = np.argsort(prominences)[::-1]
+        top_idx = sorted_idx[:n_peaks]
+        top_peaks = peaks[top_idx]
+
+        # Compute FWHM for selected peaks
+        fwhm_values, _, left_ips, right_ips = peak_widths(
+            spectrum,
+            top_peaks,
+            rel_height=0.5 #we want the width at 50% of the height of the peak
+        )
+        # Cosmic ray criterion: very narrow peak
+        if np.any(fwhm_values < fwhm_threshold):
+            cosmic_frames.append(frame_idx)
+            cosmic_location.append(wavelength[top_peaks[np.argmin(fwhm_values)]]) #record location of narrowest peak as likely cosmic ray wavelength
 
     print(f"Detected {len(cosmic_frames)} cosmic ray frames: {cosmic_frames}")
-    return cosmic_frames
+    print(f"Cosmic ray wavelengths: {cosmic_location}")
+    return cosmic_frames, cosmic_location
+
+
 
 def remove_cosmic_rays(frames: np.ndarray, cosmic_frames: list[int], sigma: float) -> np.ndarray:
     """
@@ -197,6 +220,48 @@ def remove_cosmic_rays(frames: np.ndarray, cosmic_frames: list[int], sigma: floa
     print("Successfully removed cosmic rays.")
     return frames_clean
 
+def remove_cosmic_rays2(frames: np.ndarray, cosmic_frames: list[int], sigma: float) -> np.ndarray:
+    """
+    Automatically remove cosmic rays from spectral frames using spectrapepper's cosmicmed function.
+
+    Args:
+        frames (np.ndarray): background-corrected, (normalised) frames
+        cosmic_frames (list[int]): indices of frames likely containing cosmic rays
+        sigma (float): sigma parameter for spectrapepper.cosmicmed; lower sigma = more aggressive correction
+
+    Returns:
+        np.ndarray: cleaned frames
+    """
+    print(f"Removing cosmic rays from {len(cosmic_frames)} frames: {cosmic_frames}")
+    if len(cosmic_frames) == 0:
+        return frames
+
+    frames_clean = frames.copy()
+    n_frames = frames.shape[0]
+
+    for i in cosmic_frames:
+        if i <= 0 or i >= n_frames - 1:
+            continue      # Cannot apply median method at boundaries
+
+        spectra_list = [
+            frames[i - 1],
+            frames[i],
+            frames[i + 1],
+        ]
+
+        corrected = spep.cosmicmed(spectra_list, sigma=sigma)
+        frames_clean[i] = corrected[1]
+
+    for i in cosmic_frames:
+        plt.figure()
+        plt.plot(frames[i], label="Original")
+        plt.plot(frames_clean[i], label="Corrected")
+        plt.legend()
+        plt.title(f"Frame {i}")
+        plt.show()
+
+    print("Successfully removed cosmic rays.")
+    return frames_clean
 
 def background_subtract(frames: np.ndarray, bg_slice: tuple[int, int]) -> np.ndarray:
     '''

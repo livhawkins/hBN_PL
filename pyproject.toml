@@ -10,7 +10,7 @@ authors = [
 ]
 dependencies = [
     "numpy",
-    "matplotlib"
-    "xmltodict"
+    "matplotlib",
+    "xmltodict",
     "spectrapepper"
 ]
