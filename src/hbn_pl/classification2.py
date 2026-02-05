@@ -52,10 +52,25 @@ class ZPLClassification:
         if n_zpl == 0:
             return "Bad Data (no ZPLs detected)"
         elif n_zpl == 1:
-            return "Single ZPL", print(self.zpl_peaks)
+            return "Single ZPL"
         elif n_zpl == 2:
-            return "Two ZPLs", print(self.zpl_peaks)
+            return "Two ZPLs"
         elif n_zpl == 3:
-            return "Three ZPLs", print(self.zpl_peaks)
+            return "Three ZPLs"
         elif n_zpl > 3:
-            return "Bad Data (too many ZPLs detected)", print(self.zpl_peaks)
+            return "Bad Data (too many ZPLs detected)"
+        
+        # ---- pretty peak printing ----
+        if n_zpl > 0:
+            peak_lines = []
+            for i, p in enumerate(self.zpl_peaks, start=1):
+                peak_lines.append(
+                    f"Peak {i}: location = {p.location:.1f}, prominence = {p.prominence:.1f}"
+                )
+
+            peak_text = "\n".join(peak_lines)
+            print(f"{msg}\n{peak_text}")
+        else:
+            print(msg)
+
+        return msg
