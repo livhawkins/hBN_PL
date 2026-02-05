@@ -71,4 +71,5 @@ class ZPLClassification:
             peak_text = "\n".join(peak_lines)
             msg = f"{msg}\n{peak_text}"
         
-        return msg
+        return msg, self.zpl_peaks
+    
