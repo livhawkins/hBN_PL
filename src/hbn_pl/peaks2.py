@@ -135,3 +135,40 @@ class PeakFinder:
         plt.legend()
         plt.tight_layout()
         plt.show()
+
+    def plot_energy(self, zpl_peaks):
+        """
+            Plot spectrum in energy units
+        """
+        if zpl_peaks is None or len(zpl_peaks) == 0:
+            print("LOSER EMITTER NO ZPLS")
+            return
+        
+        energy = 1239.8 / self.x
+
+        plt.figure(figsize=(8, 5))
+        plt.plot(energy, self.y)
+
+        zpl_indices = [
+            np.argmin(np.abs(self.x - p["location"]))
+            for p in zpl_peaks
+        ]
+
+        energy_zpl = 1239.8 / self.x[zpl_indices]
+        # mark only ZPL peaks
+        plt.scatter(
+            energy_zpl,
+            self.y[zpl_indices],
+            label="ZPL Peaks",
+            marker="x",
+            s=120
+        )
+        for i, idx in enumerate(zpl_indices, start=1):
+            plt.text(energy[idx], self.y[idx], f"ZPL {i}")
+
+
+        plt.xlabel("Energy (eV)")
+        plt.ylabel("Intensity (a.u.)")
+        plt.title("PL Spectrum in Energy Units")
+        plt.tight_layout()
+        plt.show()
