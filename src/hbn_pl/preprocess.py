@@ -91,86 +91,114 @@ def remove_frames(frames: np.ndarray, frames_to_remove: list[int]) -> np.ndarray
     return deleted
 
 
-def detect_cosmic_frames(frames: np.ndarray, sigma_threshold: float, min_outliers: int) -> list[int]:
-    """
-    Automatically detect frames containing cosmic rays using neighbour comparison.
-
+def is_cosmic_by_difference(frames: np.ndarray, frame_idx: int, peak_pix: int, z_thresh: float, half_width: int, noise_width: int) -> bool:
+    '''
+    Secondary check to verify if a narrow peak identified in detect_cosmic_frames is likely a cosmic ray by comparing to neighbouring frames.
     Args:
         frames (np.ndarray): shape (n_frames, n_pixels), temporarily normalised spectra
-        detect_sigma (float): detection threshold for cosmic rays; higher = fewer detections
-        min_outliers (int): minimum number of spiky pixels to flag a frame as containing cosmic rays
+        frame_idx (int): index of the frame being checked
+        peak_pix (int): pixel index of the candidate peak in this frame
+        z_thresh (float): z-score threshold for confirming cosmic ray; higher = more conservative
+        half_width (int): number of pixels on either side of the peak to consider for local peak amplitude
+        noise_width (int): number of pixels on either side of the peak to consider for local noise estimation (excluding peak region)
 
     Returns:
-        list[int]: indices of frames likely containing cosmic rays
-    """
-    print("Running cosmic ray detection...")
-    cosmic_frames = []
-    n_frames = frames.shape[0]
-
-    for i in range(1, n_frames - 1):
-        neighbour_median = np.median([frames[i - 1], frames[i + 1]], axis=0) #make a clean reference spectrum from
-        #the median of neighbouring frames. Cosmic rays only appear in one frame so won't affect the median
-        residual = frames[i] - neighbour_median #difference between current frame and reference
-        #cosmic ray would produce a large residual
-        mad = np.median(np.abs(residual)) + 1e-12 #Estimate the typical noise level using the Median Absolute Deviation (MAD)
-        z_score = residual / mad #convert to a z score in units of MAD; cosmic rays give |z| >> 1
-
-        n_spikes = np.sum(np.abs(z_score) > sigma_threshold) #count how many wavelength pixels exceed the detection threshold
-
-        if n_spikes >= min_outliers: #flag if enough high-significance outliers are present
-            cosmic_frames.append(i)
-
-    print(f"Detected {len(cosmic_frames)} cosmic ray frames: {cosmic_frames}")
-    return cosmic_frames
-
-def detect_cosmic_frames2(frames: np.ndarray, wavelength, prominence_threshold: float, fwhm_threshold: float, n_peaks: int) -> tuple[list[int], list[float]]:
+        bool: True if the peak is likely a cosmic ray, False otherwise
+    
     '''
-    Alternative method to detect cosmic ray frames by looking for very narrow peaks in the spectrum.
-    Args:        frames (np.ndarray): shape (n_frames, n_pixels), temporarily normalised spectra
+    if frame_idx == 0:
+        neighbour = frames[frame_idx + 1]
+    elif frame_idx == frames.shape[0] - 1:
+        neighbour = frames[frame_idx - 1]
+    else:
+        neighbour = 0.5 * (frames[frame_idx - 1] + frames[frame_idx + 1])
+
+    diff = frames[frame_idx] - neighbour
+
+    # defining local peak window
+    lo = max(0, peak_pix - half_width)
+    hi = min(len(diff), peak_pix + half_width + 1)
+    local_peak = diff[lo:hi]
+
+    peak_amp = np.max(np.abs(local_peak))
+
+    # defining noise region around but excluding the peak
+    nlo = max(0, peak_pix - noise_width)
+    nhi = min(len(diff), peak_pix + noise_width + 1)
+
+    noise_region = np.concatenate([
+        diff[nlo:lo],
+        diff[hi:nhi]
+    ])
+
+    if len(noise_region) < 10:
+        return False
+
+    mad = np.median(np.abs(noise_region - np.median(noise_region)))
+    sigma_local = 1.4826 * mad #local noise estimate using MAD
+
+    if sigma_local == 0:
+        return False
+
+    z = peak_amp / sigma_local
+
+    return z > z_thresh
+
+
+def detect_cosmic_frames(frames: np.ndarray, wavelength: np.ndarray, prominence_threshold: float, fwhm_threshold: float, 
+                         n_peaks: int, z_thresh: float, half_width: int, noise_width: int) -> tuple[list[int], dict[int, list[float]]]:
+    '''
+    Method to detect cosmic ray frames by looking for very narrow peaks in the spectrum. Verify these are cosmic rays and 
+    not real ZPLs by passing through a second check comparing to neighbouring frames (is_cosmic_by_difference).
+    Args:        
+        frames (np.ndarray): shape (n_frames, n_pixels), temporarily normalised spectra
         wavelength (np.ndarray): 1D array of wavelength values corresponding to the spectral pixels
-        prominence_threshold (float): minimum prominence for peak detection; higher = fewer peaks detected
+        prominence_threshold (float): minimum prominence for peak detection; higher = fewer peaks detected. 
+            Some cosmic rays can be faint so this should not be too high.
         fwhm_threshold (float): maximum FWHM for a peak to be considered a cosmic ray; lower = more aggressive detection
         n_peaks (int): number of top peaks to consider in each frame; higher = more peaks checked for cosmic ray criterion
+        z_thresh (float): z-score threshold for confirming cosmic ray in second check; higher = more conservative
+        half_width (int): number of pixels on either side of the peak to consider for local peak amplitude in second check
+        noise_width (int): number of pixels on either side of the peak to consider for local noise estimation in second check
+    
     Returns:
         list[int]: indices of frames likely containing cosmic rays
-        list[float]: wavelengths of detected cosmic rays
+        dict[int, list[float]]: mapping of frame index (int) to list of wavelengths where cosmic rays were detected
     '''
-
+    print("Detecting cosmic ray frames...")
     cosmic_frames = []
-    cosmic_location = {}  # frame_idx -> list of wavelengths    n_frames = frames.shape[0]
+    cosmic_location = {}  # frame_idx -> list of wavelengths
     n_frames = frames.shape[0]
 
     for frame_idx in range(n_frames):
-
         spectrum = frames[frame_idx]
 
         # Find peaks in this frame
-        peaks, properties = find_peaks(
-            spectrum,
-            prominence=prominence_threshold
-        )
+        peaks, properties = find_peaks(spectrum,prominence=prominence_threshold)
 
         if len(peaks) == 0:
             continue
 
-        # Sort peaks by prominence (descending)
         prominences = properties["prominences"]
         top_peaks = peaks[np.argsort(prominences)[::-1][:n_peaks]] #sort in order of highest prominence to lowest
 
         # Compute FWHM for selected peaks
-        fwhm_values, _, _, _ = peak_widths(
-            spectrum,
-            top_peaks,
-            rel_height=0.5 #we want the width at 50% of the height of the peak
-        )
+        fwhm_values, _, _, _ = peak_widths(spectrum,top_peaks,rel_height=0.5)
 
-        # Cosmic ray criterion: very narrow peak
-        if np.any(fwhm_values < fwhm_threshold):
+        candidate_peaks = top_peaks[fwhm_values < fwhm_threshold] #find some candidate peaks for second check
+
+        confirmed_cosmics = []
+
+        for peaks in candidate_peaks:
+            if is_cosmic_by_difference(frames, frame_idx, peaks, z_thresh=z_thresh, half_width=half_width, noise_width=noise_width):#returns true if second check believes it is a cosmic ray
+                confirmed_cosmics.append(peaks)
+
+        if confirmed_cosmics:
             cosmic_frames.append(frame_idx)
-            cosmic_location[frame_idx] = wavelength[top_peaks[fwhm_values < fwhm_threshold]].tolist() #record location of narrowest peak as likely cosmic ray wavelength
-
+            cosmic_location[frame_idx] = wavelength[confirmed_cosmics].tolist()
     print(f"Detected {len(cosmic_frames)} cosmic ray frames: {cosmic_frames}")
     print(f"Cosmic ray wavelengths: {cosmic_location}")
+    print("Cosmic ray detection complete.")
     return cosmic_frames, cosmic_location
 
 
@@ -218,7 +246,7 @@ def remove_cosmic_rays(frames: np.ndarray, cosmic_frames: list[int], sigma: floa
     print("Successfully removed cosmic rays.")
     return frames_clean
 
-def remove_cosmic_rays2(frames: np.ndarray, wavelength: np.ndarray,cosmic_frames: list[int],cosmic_location: list[float],sigma: float = 2.5,half_width: int = 3) -> np.ndarray:
+def remove_cosmic_rays2(frames: np.ndarray, wavelength: np.ndarray,cosmic_frames: list[int],cosmic_location: dict[int, list[float]],sigma: float = 2.5,half_width: int = 3) -> np.ndarray:
 
     print(f"Removing cosmic rays from {len(cosmic_frames)} frames: {cosmic_frames}")
 
@@ -226,24 +254,22 @@ def remove_cosmic_rays2(frames: np.ndarray, wavelength: np.ndarray,cosmic_frames
         return frames
 
     frames_clean = frames.copy()
-    n_frames, n_pixels = frames.shape
+    n_frames = frames.shape[0]
 
     for frame_idx in cosmic_frames:
-        if frame_idx <= 0 or frame_idx >= n_frames - 1:
-            continue  # need neighbours for median method
+        if frame_idx == 0:
+            spectra_list = [frames[frame_idx], frames[frame_idx + 1], frames[frame_idx + 2]]
+        elif frame_idx == n_frames - 1:
+            spectra_list = [frames[frame_idx - 2], frames[frame_idx - 1], frames[frame_idx]]
+        else:
+            spectra_list = [frames[frame_idx - 1], frames[frame_idx], frames[frame_idx + 1]]
 
-        spectra_list = [
-            frames[frame_idx - 1],
-            frames[frame_idx],
-            frames[frame_idx + 1],
-        ]
-
-        # Run cosmicmed ONCE for the whole spectrum
+        # run cosmicmed once for the whole spectrum
         corrected = spep.cosmicmed(spectra_list, sigma=sigma)
         corrected_spectrum = corrected[1]
 
-        # Now only copy small regions around cosmic rays
-        for wl in cosmic_location:
+        # only copy small regions around cosmic rays
+        for wl in cosmic_location.get(frame_idx, []):
             mask = np.abs(wavelength - wl) <= half_width
             frames_clean[frame_idx, mask] = corrected_spectrum[mask]
 
@@ -256,7 +282,7 @@ def remove_cosmic_rays2(frames: np.ndarray, wavelength: np.ndarray,cosmic_frames
         plt.title(f"Frame {i}")
         plt.show()
 
-    print("Successfully removed cosmic rays.")
+    print("Cosmic ray removal complete.")
     return frames_clean
 
 def background_subtract(frames: np.ndarray, bg_slice: tuple[int, int]) -> np.ndarray:
