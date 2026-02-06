@@ -137,10 +137,9 @@ def detect_cosmic_frames2(frames: np.ndarray, wavelength, prominence_threshold: 
     '''
 
     cosmic_frames = []
-    cosmic_location = []
+    cosmic_location = {}  # frame_idx -> list of wavelengths    n_frames = frames.shape[0]
     n_frames = frames.shape[0]
 
-    
     for frame_idx in range(n_frames):
 
         spectrum = frames[frame_idx]
@@ -156,20 +155,19 @@ def detect_cosmic_frames2(frames: np.ndarray, wavelength, prominence_threshold: 
 
         # Sort peaks by prominence (descending)
         prominences = properties["prominences"]
-        sorted_idx = np.argsort(prominences)[::-1]
-        top_idx = sorted_idx[:n_peaks]
-        top_peaks = peaks[top_idx]
+        top_peaks = peaks[np.argsort(prominences)[::-1][:n_peaks]] #sort in order of highest prominence to lowest
 
         # Compute FWHM for selected peaks
-        fwhm_values, _, left_ips, right_ips = peak_widths(
+        fwhm_values, _, _, _ = peak_widths(
             spectrum,
             top_peaks,
             rel_height=0.5 #we want the width at 50% of the height of the peak
         )
+
         # Cosmic ray criterion: very narrow peak
         if np.any(fwhm_values < fwhm_threshold):
             cosmic_frames.append(frame_idx)
-            cosmic_location.append(wavelength[top_peaks[np.argmin(fwhm_values)]]) #record location of narrowest peak as likely cosmic ray wavelength
+            cosmic_location[frame_idx] = wavelength[top_peaks[fwhm_values < fwhm_threshold]].tolist() #record location of narrowest peak as likely cosmic ray wavelength
 
     print(f"Detected {len(cosmic_frames)} cosmic ray frames: {cosmic_frames}")
     print(f"Cosmic ray wavelengths: {cosmic_location}")
@@ -220,42 +218,40 @@ def remove_cosmic_rays(frames: np.ndarray, cosmic_frames: list[int], sigma: floa
     print("Successfully removed cosmic rays.")
     return frames_clean
 
-def remove_cosmic_rays2(frames: np.ndarray, cosmic_frames: list[int], sigma: float) -> np.ndarray:
-    """
-    Automatically remove cosmic rays from spectral frames using spectrapepper's cosmicmed function.
+def remove_cosmic_rays2(frames: np.ndarray, wavelength: np.ndarray,cosmic_frames: list[int],cosmic_location: list[float],sigma: float = 2.5,half_width: int = 3) -> np.ndarray:
 
-    Args:
-        frames (np.ndarray): background-corrected, (normalised) frames
-        cosmic_frames (list[int]): indices of frames likely containing cosmic rays
-        sigma (float): sigma parameter for spectrapepper.cosmicmed; lower sigma = more aggressive correction
-
-    Returns:
-        np.ndarray: cleaned frames
-    """
     print(f"Removing cosmic rays from {len(cosmic_frames)} frames: {cosmic_frames}")
+
     if len(cosmic_frames) == 0:
         return frames
 
     frames_clean = frames.copy()
-    n_frames = frames.shape[0]
+    n_frames, n_pixels = frames.shape
 
-    for i in cosmic_frames:
-        if i <= 0 or i >= n_frames - 1:
-            continue      # Cannot apply median method at boundaries
+    for frame_idx in cosmic_frames:
+        if frame_idx <= 0 or frame_idx >= n_frames - 1:
+            continue  # need neighbours for median method
 
         spectra_list = [
-            frames[i - 1],
-            frames[i],
-            frames[i + 1],
+            frames[frame_idx - 1],
+            frames[frame_idx],
+            frames[frame_idx + 1],
         ]
 
+        # Run cosmicmed ONCE for the whole spectrum
         corrected = spep.cosmicmed(spectra_list, sigma=sigma)
-        frames_clean[i] = corrected[1]
+        corrected_spectrum = corrected[1]
 
+        # Now only copy small regions around cosmic rays
+        for wl in cosmic_location:
+            mask = np.abs(wavelength - wl) <= half_width
+            frames_clean[frame_idx, mask] = corrected_spectrum[mask]
+
+    # Optional plotting for sanity checks
     for i in cosmic_frames:
         plt.figure()
-        plt.plot(frames[i], label="Original")
-        plt.plot(frames_clean[i], label="Corrected")
+        plt.plot(frames[i], label="Original", alpha=0.7)
+        plt.plot(frames_clean[i], label="Corrected", alpha=0.7)
         plt.legend()
         plt.title(f"Frame {i}")
         plt.show()
