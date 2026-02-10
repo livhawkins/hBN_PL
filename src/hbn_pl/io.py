@@ -40,3 +40,21 @@ def load_spe(path: str) -> tuple[np.ndarray, np.ndarray]:
     
     return wavelength, frames
 
+#def output(input: type) -> what is the output form
+#to run in notebook: output(p, OUTPUT_DIR)
+def output(p: dict, path: str):
+    '''Peakfinder output - outputs a csv file with the detected peak information (location, intensity, prominence), and ZPL classification.
+    Additionally saves energy/intensity plot with ZPL marking.
+    
+    Args:
+        p (dict): Dictionary containing peak information and ZPL classification.
+        path (str or Path): Path to save the output CSV and plot.
+
+    Returns:
+        None: Saves output to specified path.
+    '''
+
+    
+    
+
+
