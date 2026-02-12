@@ -1,4 +1,3 @@
-import json
 import numpy as np
 from pathlib import Path
 from hbn_pl.SPE3reading import SPE3map
