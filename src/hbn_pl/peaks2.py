@@ -97,3 +97,78 @@ class PeakFinder:
         plt.legend()
         plt.tight_layout()
         plt.show()
+
+    def plot_zpl_on_spectrum(self, zpl_peaks):
+
+        'Plot spectrum and highlight only ZPL peaks'
+
+        if zpl_peaks is None or len(zpl_peaks) == 0:
+            print("LOSER EMITTER NO ZPLS")
+            return
+
+        plt.figure(figsize=(8,5))
+        # full spectrum
+        plt.plot(self.x, self.y, label="PL Spectrum")
+
+        # convert ZPL locations → indices in x-array
+        zpl_indices = [
+            np.argmin(np.abs(self.x - p["location"]))
+            for p in zpl_peaks
+        ]
+
+        # mark only ZPL peaks
+        plt.scatter(
+            self.x[zpl_indices],
+            self.y[zpl_indices],
+            label="ZPL Peaks",
+            marker="x",
+            s=120
+        )
+
+        # label them
+        for i, idx in enumerate(zpl_indices, start=1):
+            plt.text(self.x[idx + 33], self.y[idx], f"ZPL {i}")
+
+        plt.xlabel("Wavelength (nm)")
+        plt.ylabel("Intensity")
+        plt.title("PL Spectrum with ZPL Peaks")
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
+
+    def plot_energy(self, zpl_peaks):
+        """
+            Plot spectrum in energy units
+        """
+        if zpl_peaks is None or len(zpl_peaks) == 0:
+            print("LOSER EMITTER NO ZPLS")
+            return
+        
+        energy = 1239.8 / self.x
+
+        plt.figure(figsize=(8, 5))
+        plt.plot(energy, self.y)
+
+        zpl_indices = [
+            np.argmin(np.abs(self.x - p["location"]))
+            for p in zpl_peaks
+        ]
+
+        energy_zpl = 1239.8 / self.x[zpl_indices]
+        # mark only ZPL peaks
+        plt.scatter(
+            energy_zpl,
+            self.y[zpl_indices],
+            label="ZPL Peaks",
+            marker="x",
+            s=120
+        )
+        for i, idx in enumerate(zpl_indices, start=1):
+            plt.text(energy[idx], self.y[idx], f"ZPL {i}")
+
+
+        plt.xlabel("Energy (eV)")
+        plt.ylabel("Intensity (a.u.)")
+        plt.title("PL Spectrum in Energy Units")
+        plt.tight_layout()
+        plt.show()
