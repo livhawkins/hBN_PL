@@ -101,13 +101,17 @@ def output(peakdata: dict,
 
     with open(csv_file, mode='w', newline='') as f:
         csv_write = csv.writer(f)
-        csv_write.writerow(["Peak Location", "Peak Intensity", "Peak Prominence", "ZPL Classification"])
+        # metadata section? ZPL classification prints as a single line, before the CSV table (as comment-style metadata for CSV format)
+        csv_write.writerow([f"#ZPL Classification: {classification_msg}"])
+        csv_write.writerow([]) # blank line before table
+
+        #table header:
+        csv_write.writerow(["Peak Location", "Peak Intensity", "Peak Prominence"])
         for peak in peakdata:
             csv_write.writerow([
                 peak["location"],
                 peak["intensity"],
                 peak["prominence"],
-                classification_msg
             ])
     messages.append(f"Saved CSV file in emitter output directory")
 
