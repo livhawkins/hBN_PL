@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 
-def plot_frames(wavelength, frames):
+def plot_frames(wavelength, frames, show = True):
     """
     Plot all spectral frames for visualization.
 
@@ -8,13 +8,17 @@ def plot_frames(wavelength, frames):
         wavelength (np.ndarray): 1D array of wavelength values.
         frames (np.ndarray): 2D array of spectral frames (num_frames x num_wavelengths).
     """
+    figs = []
     for i in range(frames.shape[0]):
-        plt.figure()
+        fig = plt.figure()
         plt.plot(wavelength, frames[i])
         plt.title(f"Frame {i}")
         plt.xlabel('Wavelength (nm)')
         plt.ylabel('Intensity (counts)')
-        plt.show()
+        figs.append(fig)
+        if show:
+            plt.show()
+    return figs
 
 
 def plot_spectrum(wavelength, spectrum, peaks=None, zpl=None, psb=None, outpath=None) -> None:
@@ -86,7 +90,7 @@ def plot_energy(
         energy_mev <= energy_window[1]
     )
 
-    plt.figure()
+    fig = plt.figure()
     plt.plot(energy_mev[mask], spectrum[mask])
     plt.xlabel("Phonon energy (meV)")
     plt.ylabel("Normalised PL intensity")
@@ -96,4 +100,4 @@ def plot_energy(
         plt.savefig(outpath, dpi=300)
         plt.close()
     else:
-        plt.show()
+        return fig

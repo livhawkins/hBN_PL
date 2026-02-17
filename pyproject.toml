@@ -1,7 +1,11 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "hbn_pl"
 version = "0.0.1"
-description = "Simple hbn PL project for the PML course"
+description = "Simple hbn PL peak finder and emitter classification project for Tara's PML course"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
@@ -13,4 +17,8 @@ dependencies = [
     "matplotlib"
     "xmltodict"
     "spectrapepper"
+    "csv"
+    "pathlib"
+    "scipy.signal"
+    "pylab"
 ]
