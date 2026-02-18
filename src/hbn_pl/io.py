@@ -156,7 +156,7 @@ def output(peakdata: dict,
         for i, fig in enumerate(cosmic_figs):
             fig.savefig(cosmic_dir / f"{emitter_name}_frame_{cosmic_frames[i]}_cosmic_correction.png")
             plt.close(fig)
-        messages.append(f"Saved {len(cosmic_figs)} cosmic ray comparison plots in: output directory /cosmic_ray_removal")
+        messages.append(f"Saved {len(cosmic_figs)} cosmic ray plots in: output directory/cosmic_ray_removal")
     else:
         messages.append("No cosmic ray figures to save.")
 
