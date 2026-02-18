@@ -3,6 +3,7 @@ from pathlib import Path
 from hbn_pl.SPE3reading import SPE3map
 import matplotlib.pyplot as plt
 import csv
+import hbn_pl.preprocess as preprocess
 
 def load_spe(path: str) -> tuple[np.ndarray, np.ndarray]:
     '''
@@ -42,7 +43,6 @@ def load_spe(path: str) -> tuple[np.ndarray, np.ndarray]:
     return wavelength, frames
 
 
-
 #def output(input: type) -> what is the output form
 #to run in notebook: output(p, OUTPUT_DIR)
 def output(peakdata: dict, 
@@ -54,7 +54,14 @@ def output(peakdata: dict,
            plot=None,
            peaks2= None,
            finder=None,
-           zpl_peaks=None):
+           zpl_peaks=None, 
+           bad_frames= None,
+           drop_fraction=None, 
+           cosmic_frames = None,
+           frames_cleaned = None, 
+           cosmic_figs = None):
+
+    
     ''' Saves Peakfinder output, including:
     - CSV with peak data + classification
     - Directory structure:
@@ -101,13 +108,21 @@ def output(peakdata: dict,
 
     with open(csv_file, mode='w', newline='') as f:
         csv_write = csv.writer(f)
-        csv_write.writerow(["Peak Location", "Peak Intensity", "Peak Prominence", "ZPL Classification"])
+        # ZPL classification - single line, before the CSV table (as comment-style metadata for CSV format)
+        csv_write.writerow([f"# ZPL Classification: {classification_msg}"])
+        # Bad frame info (only if provided), note what frames removed based on drop_fraction
+        if bad_frames is not None:
+            bad_frames_list = [int(i) for i in bad_frames]
+            csv_write.writerow([f"# Bad frames (drop_fraction={drop_fraction}): {bad_frames_list}"])
+            csv_write.writerow([])  # blank line before table
+
+        #table header:
+        csv_write.writerow(["Peak Location", "Peak Intensity", "Peak Prominence"])
         for peak in peakdata:
             csv_write.writerow([
                 peak["location"],
                 peak["intensity"],
                 peak["prominence"],
-                classification_msg
             ])
     messages.append(f"Saved CSV file in emitter output directory")
 
@@ -115,10 +130,16 @@ def output(peakdata: dict,
     original_dir = emitter_outputfolder / "original_frames"
     found_dir = emitter_outputfolder / "found_peaks"
     ZPL_dir = emitter_outputfolder / "ZPL_plots"
+    cosmic_dir = emitter_outputfolder / "cosmic_ray_removal"
+    norm_dir = emitter_outputfolder / "normalised_spectrum"
 
     original_dir.mkdir(exist_ok=True)
     found_dir.mkdir(exist_ok=True)
     ZPL_dir.mkdir(exist_ok=True)
+    cosmic_dir.mkdir(exist_ok=True)
+    norm_dir.mkdir(exist_ok=True)
+
+
 
     # 1: Original frames
     if wavelength is None or frames is None or plot is None:
@@ -130,7 +151,28 @@ def output(peakdata: dict,
         plt.close('all')
         messages.append(f"Saved original frame plots ({len(figs)} frames) in: emitter output directory/original_frames")
 
-    # 2: Spectra with detected peaks
+    # 2 Save orrected spectra with cosmic ray removal
+    if cosmic_figs is not None and len(cosmic_figs) > 0:
+        for i, fig in enumerate(cosmic_figs):
+            fig.savefig(cosmic_dir / f"{emitter_name}_frame_{cosmic_frames[i]}_cosmic_correction.png")
+            plt.close(fig)
+        messages.append(f"Saved {len(cosmic_figs)} cosmic ray comparison plots in: output directory /cosmic_ray_removal")
+    else:
+        messages.append("No cosmic ray figures to save.")
+
+    # 3 save averaged and normalised spectra
+    if wavelength is None or frames is None:
+        messages.append("Averaged spectrum not saved: wavelength or frames missing.")
+    else:
+        try:
+            avg, avg_norm = preprocess.average_and_normalise(frames)
+            spectrum_file = norm_dir / f"{emitter_name}_averaged_normalized_spectrum.png"
+            plot.plot_spectrum(wavelength, avg_norm, outpath=spectrum_file)
+            messages.append(f"Saved averaged and normalized spectrum plot in: output directory/normalised_spectrum")
+        except Exception as e:
+            messages.append(f"Failed to save averaged spectrum plot: {e}")
+
+    # 4: Spectra with detected peaks
     if finder is None:
         messages.append("Finder object not provided, peaks plots skipped.")
     elif finder.peaks is None or len(finder.peaks) == 0:
@@ -141,7 +183,7 @@ def output(peakdata: dict,
         plt.close(peaks_fig)
         messages.append(f"Saved peak plot in: emitter output directory/found_peaks")
 
-    # 3: ZPL wavelength and energy plots
+    # 5: ZPL wavelength and energy plots
     if finder is None or zpl_peaks is None or len(zpl_peaks) == 0:
         messages.append("No ZPL peaks found or finder not provided, ZPL plots skipped.")
     else:
@@ -158,10 +200,19 @@ def output(peakdata: dict,
             energy_fig.savefig(ZPL_dir / f"{emitter_name}_ZPL_energy_plot.png")
             plt.close(energy_fig)
             messages.append(f"Saved ZPL energy plot in: emitter output directory/ZPL_plots")
+    
+    # 6 Save wavelength and energy spectral data as pickle file (.npz)
+    if wavelength is not None and zpl_peaks is not None:
+        npz_file = emitter_outputfolder / f"{emitter_name}_wavelength_spectrum.npz"
+        np.savez(npz_file, wavelength=wavelength, zpl_peaks=zpl_peaks)
+        messages.append(f"Saved wavelength spectrum as .npz file in emitter output directory")
+
+        energy = 1239.8 / wavelength  # convert nm -> eV
+        npz_energy_file = emitter_outputfolder / f"{emitter_name}_energy_spectrum.npz"
+        np.savez(npz_energy_file, energy=energy, zpl_peaks=zpl_peaks)
+        messages.append(f"Saved energy spectrum as .npz file in emitter output directory")
+
 
     # Final summary
     summary = "\n".join(messages)
     print(f"Peakfinder outputs for emitter '{input_file}' saved in:\n{emitter_outputfolder}. \n\n{summary}")
-    
-
-

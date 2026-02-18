@@ -8,7 +8,7 @@ version = "0.0.1"
 description = "Simple hbn PL peak finder and emitter classification project for Tara's PML course"
 readme = "README.md"
 requires-python = ">=3.9"
-license = { text = "MIT" }
+license = { text = "" }
 authors = [
     { name = "Liv Hawkins, Emma Huntley, Magda Glinka", email = "oh306@cam.ac.uk" }
 ]

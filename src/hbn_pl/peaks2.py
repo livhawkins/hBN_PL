@@ -2,6 +2,7 @@ from scipy.signal import find_peaks, peak_widths
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 class PeakFinder:
     """
     Finds and characterises peaks in PL spectra.
@@ -132,7 +133,7 @@ class PeakFinder:
             # shift label 1% of the total x-range to the right
             x_shift = (self.x[-1] - self.x[0]) * 0.01
             x_text = self.x[idx] + x_shift
-            plt.text(x_text, self.y[idx], f"ZPL {i}")
+            plt.text(x_text+3, self.y[idx], f"ZPL {i}")
 
         plt.xlabel("Wavelength (nm)")
         plt.ylabel("Intensity")
@@ -150,36 +151,36 @@ class PeakFinder:
             print("LOSER EMITTER NO ZPLS")
             return
         
-        energy = 1239.8 / self.x
-
-        fig = plt.figure(figsize=(8, 5))
-        plt.plot(energy, self.y)
+        energy = 1239.8 / self.x 
 
         zpl_indices = np.array([np.argmin(np.abs(self.x - p["location"])) for p in zpl_peaks])
         energy_zpl = energy[zpl_indices]  # use energy array, not 1239.8/self.x again
+        energy_zpl = 1239.8 / self.x[zpl_indices] 
 
-
+        energy = (energy - energy_zpl[0])*(-1000) #units in meV, and reverse x-axis plotting
 
         #zpl_indices = [
         #    np.argmin(np.abs(self.x - p["location"]))
         #    for p in zpl_peaks
        #]
+        fig = plt.figure(figsize=(8, 5))
+        plt.plot(energy, self.y)
 
-        energy_zpl = 1239.8 / self.x[zpl_indices]
         # mark only ZPL peaks
         plt.scatter(
-            energy_zpl,
+            0,
             self.y[zpl_indices],
             label="ZPL Peaks",
             marker="x",
             s=120
         )
         for i, idx in enumerate(zpl_indices, start=1):
-            plt.text(energy[idx], self.y[idx], f"ZPL {i}")
+            plt.text(energy[idx]+5, self.y[idx], f"ZPL {i}")
 
 
-        plt.xlabel("Energy (eV)")
+        plt.xlabel("Phonon energy (meV)")
         plt.ylabel("Intensity (a.u.)")
+        plt.xlim(-20, 200)
         plt.title("PL Spectrum in Energy Units")
         plt.tight_layout()
         return fig
