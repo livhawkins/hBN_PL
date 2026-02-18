@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 
 def plot_frames(wavelength, frames, show = True):
     """
@@ -19,6 +20,38 @@ def plot_frames(wavelength, frames, show = True):
         if show:
             plt.show()
     return figs
+
+def plot_cosmic_frames(frames: np.ndarray, wavelength: np.ndarray, cosmic_location: dict[int, list[float]]) -> None:
+    """
+    Plot frames identified as containing cosmic rays with markers for the detected cosmic ray locations.
+
+    Args:
+        frames (np.ndarray): 2D array of spectral frames (num_frames x num_wavelengths).
+        wavelength (np.ndarray): 1D array of wavelength values.
+        cosmic_location (dict): Dictionary mapping frame indices to lists of detected cosmic ray wavelengths.
+    """
+    for frame_idx, wl_list in cosmic_location.items():
+        spectrum = frames[frame_idx]
+        plt.plot(wavelength, spectrum, label="Spectrum")
+
+        for wl in wl_list:
+            pix = np.argmin(np.abs(wavelength - wl))
+            plt.plot(
+                wavelength[pix],
+                spectrum[pix],
+                marker="x",
+                color="red",
+                markersize=10,
+                mew=2,
+                label="Detected cosmic ray"
+            )
+
+        plt.xlabel("Wavelength (nm)")
+        plt.ylabel("Intensity")
+        plt.title(f"Cosmic Ray Frame {frame_idx}")
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
 
 
 def plot_spectrum(wavelength, spectrum, peaks=None, zpl=None, psb=None, outpath=None) -> None:
@@ -77,27 +110,3 @@ def plot_spectrum(wavelength, spectrum, peaks=None, zpl=None, psb=None, outpath=
         plt.close()
     else:
         plt.show()
-
-
-def plot_energy(
-    energy_mev,
-    spectrum,
-    energy_window=(-20, 200),
-    outpath=None,
-):
-
-    mask = (energy_mev >= energy_window[0]) & (
-        energy_mev <= energy_window[1]
-    )
-
-    fig = plt.figure()
-    plt.plot(energy_mev[mask], spectrum[mask])
-    plt.xlabel("Phonon energy (meV)")
-    plt.ylabel("Normalised PL intensity")
-    plt.tight_layout()
-
-    if outpath is not None:
-        plt.savefig(outpath, dpi=300)
-        plt.close()
-    else:
-        return fig

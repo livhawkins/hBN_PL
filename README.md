@@ -6,9 +6,7 @@ Core code contains:
 - io.py : input and output functions
 - SPE3reading.py : data loading and cleaning 
 - preprocess.py: preprocessing
-- peaks.py & peaks2.py: peak detection
+- peaks2.py: peak detection
 - plot.py : plotting 
 - classification2.py: emitter classification 
-- energy.py: energy conversion
-
 
