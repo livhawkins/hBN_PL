@@ -144,42 +144,72 @@ class PeakFinder:
 
     def plot_energy(self, zpl_peaks):
         """
-            Plot spectrum in energy units
+        Plot spectrum in energy units (publication style)
         """
         if zpl_peaks is None or len(zpl_peaks) == 0:
-            print("LOSER EMITTER NO ZPLS")
+            print("No ZPLs detected.")
             return
-        
-        energy = 1239.8 / self.x
 
-        fig = plt.figure(figsize=(8, 5))
-        plt.plot(energy, self.y)
+        energy = 1239.8 / self.x  # eV (assuming x is nm)
 
-        zpl_indices = np.array([np.argmin(np.abs(self.x - p["location"])) for p in zpl_peaks])
-        energy_zpl = energy[zpl_indices]  # use energy array, not 1239.8/self.x again
+        fig, ax = plt.subplots(figsize=(7, 4.5))
 
+        # Main spectrum
+        ax.plot(
+            energy,
+            self.y,
+            linewidth=1.8
+        )
 
+        # Find ZPL indices
+        zpl_indices = np.array([
+            np.argmin(np.abs(self.x - p["location"]))
+            for p in zpl_peaks
+        ])
 
-        #zpl_indices = [
-        #    np.argmin(np.abs(self.x - p["location"]))
-        #    for p in zpl_peaks
-       #]
+        energy_zpl = energy[zpl_indices]
 
-        energy_zpl = 1239.8 / self.x[zpl_indices]
-        # mark only ZPL peaks
-        plt.scatter(
+        # Mark ZPL peaks
+        ax.scatter(
             energy_zpl,
             self.y[zpl_indices],
-            label="ZPL Peaks",
-            marker="x",
-            s=120
+            marker="o",
+            s=60,
+            zorder=5,
+            label="ZPL"
         )
-        for i, idx in enumerate(zpl_indices, start=1):
-            plt.text(energy[idx], self.y[idx], f"ZPL {i}")
 
+        # Optional: small vertical markers instead of text clutter
+        for idx in zpl_indices:
+            ax.axvline(
+                energy[idx],
+                linestyle="--",
+                linewidth=1,
+                alpha=0.5
+            )
 
-        plt.xlabel("Energy (eV)")
-        plt.ylabel("Intensity (a.u.)")
-        plt.title("PL Spectrum in Energy Units")
-        plt.tight_layout()
+    # Axis labels
+        ax.set_xlabel("Energy (eV)", fontsize=13)
+        ax.set_ylabel("Intensity (a.u.)", fontsize=13)
+
+    # Remove top/right spines (clean journal style)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+
+    # Ticks styling
+        ax.tick_params(
+            direction="in",
+            length=6,
+            width=1,
+            labelsize=11
+        )
+
+    # Reverse x-axis (common in energy plots)
+        ax.set_xlim(max(energy), min(energy))
+
+        ax.legend(frameon=False, fontsize=11)
+
+        fig.tight_layout()
+
         return fig
+
