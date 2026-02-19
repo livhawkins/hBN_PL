@@ -14,11 +14,9 @@ authors = [
 ]
 dependencies = [
     "numpy",
-    "matplotlib"
-    "xmltodict"
-    "spectrapepper"
-    "csv"
-    "pathlib"
-    "scipy.signal"
-    "pylab"
+    "matplotlib",
+    "xmltodict",
+    "spectrapepper",
+    "scipy",
 ]
+

@@ -2,7 +2,11 @@ README.md
 pyproject.toml
 src/hbn_pl/SPE3reading.py
 src/hbn_pl/__init__.py
-src/hbn_pl/core.py
+src/hbn_pl/classification2.py
+src/hbn_pl/io.py
+src/hbn_pl/peaks2.py
+src/hbn_pl/plot.py
+src/hbn_pl/preprocess.py
 src/hbn_pl.egg-info/PKG-INFO
 src/hbn_pl.egg-info/SOURCES.txt
 src/hbn_pl.egg-info/dependency_links.txt

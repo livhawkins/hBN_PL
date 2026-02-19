@@ -1,20 +1,25 @@
 Metadata-Version: 2.4
 Name: hbn_pl
 Version: 0.0.1
-Summary: Simple hbn PL project for the PML course
+Summary: Simple hbn PL peak finder and emitter classification project for Tara's PML course
 Author-email: "Liv Hawkins, Emma Huntley, Magda Glinka" <oh306@cam.ac.uk>
-License: MIT
 Requires-Python: >=3.9
 Description-Content-Type: text/markdown
 Requires-Dist: numpy
 Requires-Dist: matplotlib
+Requires-Dist: xmltodict
+Requires-Dist: spectrapepper
+Requires-Dist: scipy
 
 Repo for hBN PL project
+Simple hbn PL peak finder and emitter classification project for Tara's PML course
 
-
-
-
-
-
-
+Core code contains:
+- __init__.py
+- io.py : input and output functions
+- SPE3reading.py : data loading and cleaning 
+- preprocess.py: preprocessing
+- peaks2.py: peak detection
+- plot.py : plotting 
+- classification2.py: emitter classification 
 
