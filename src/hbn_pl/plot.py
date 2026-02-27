@@ -50,8 +50,7 @@ def plot_cosmic_frames(frames: np.ndarray, wavelength: np.ndarray, cosmic_locati
         plt.show()
 
 
-
-def plot_spectrum(spectrum: np.ndarray, wavelength: np.ndarray, peaks=None, zpl=None, psb=None, outpath=None) -> None:
+def plot_spectrum(wavelength, spectrum, peaks=None, zpl=None, psb=None, outpath=None) -> None:
     '''
     Plot a single spectrum with optional peak, ZPL, and PSB markers.
     Args:
@@ -120,7 +119,7 @@ def plot_energy(
         energy_mev <= energy_window[1]
     )
 
-    plt.figure()
+    fig = plt.figure()
     plt.plot(energy_mev[mask], spectrum[mask])
     plt.xlabel("Phonon energy (meV)")
     plt.ylabel("Normalised PL intensity")
@@ -130,4 +129,4 @@ def plot_energy(
         plt.savefig(outpath, dpi=300)
         plt.close()
     else:
-        plt.show()
+        return fig

@@ -39,6 +39,7 @@ class ZPLClassification:
             if not (loc_range[0] <= peak["location"] <= loc_range[1]):
                 return False
 
+
         return True
 
     
@@ -50,27 +51,28 @@ class ZPLClassification:
         n_zpl = len(self.zpl_peaks)
 
         if n_zpl == 0:
-            return "Bad Data (no ZPLs detected)"
+            msg = "Bad Data (no ZPLs detected)"
         elif n_zpl == 1:
-            return "Single ZPL"
+            msg = "Single ZPL"
         elif n_zpl == 2:
-            return "Two ZPLs"
+            msg = "Two ZPLs"
         elif n_zpl == 3:
-            return "Three ZPLs"
+            msg = "Three ZPLs"
         elif n_zpl > 3:
-            return "Bad Data (too many ZPLs detected)"
+            msg = "Bad Data (too many ZPLs detected)"
         
-        # ---- pretty peak printing ----
+        # pretty peak data hihi
         if n_zpl > 0:
             peak_lines = []
+
             for i, p in enumerate(self.zpl_peaks, start=1):
-                peak_lines.append(
-                    f"Peak {i}: location = {p.location:.1f}, prominence = {p.prominence:.1f}"
-                )
 
+                peak_lines.append(f"Peak {i}: location = {p['location']:.1f}, prominence = {p['prominence']:.1f}")
+                
             peak_text = "\n".join(peak_lines)
-            print(f"{msg}\n{peak_text}")
-        else:
-            print(msg)
-
-        return msg
+            msg = f"{msg}\n{peak_text}"
+        
+        return msg, self.zpl_peaks
+    
+    
+    

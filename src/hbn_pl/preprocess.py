@@ -247,7 +247,20 @@ def remove_cosmic_rays(frames: np.ndarray, cosmic_frames: list[int], sigma: floa
     return frames_clean
 
 def remove_cosmic_rays2(frames: np.ndarray, wavelength: np.ndarray,cosmic_frames: list[int],cosmic_location: dict[int, list[float]],sigma: float = 2.5,half_width: int = 3) -> np.ndarray:
+    '''
+    Newer method to remove cosmic rays only in small regions around detected cosmic ray wavelengths, rather than the whole spectrum. This is to avoid over-correction of real spectral features in the same frame.
+    Args:
+    frames (np.ndarray): background-corrected frames
+    wavelength (np.ndarray): 1D array of wavelength values corresponding to the spectral pixels
+    cosmic_frames (list[int]): indices of frames likely containing cosmic rays
+    cosmic_location (dict[int, list[float]]): mapping of frame index (int) to list of wavelengths where cosmic rays were detected
+    sigma (float): sigma parameter for spectrapepper.cosmicmed; lower sigma = more aggressive correction
+    half_width (int): number of pixels on either side of the detected cosmic ray wavelength to correct; higher = more aggressive correction
 
+    Returns:
+    np.ndarray: corrected frames with cosmic rays removed in small regions around detected wavelengths
+
+    '''
     print(f"Removing cosmic rays from {len(cosmic_frames)} frames: {cosmic_frames}")
 
     if len(cosmic_frames) == 0:
