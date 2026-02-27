@@ -1,0 +1,7 @@
+"# ZPL Classification: Single ZPL
+Peak 1: location = 629.8, prominence = 1.0"
+# Bad frames (drop_fraction=0.6): [5]
+
+Peak Location,Peak Intensity,Peak Prominence
+629.784643988842,1.0,1.000641708113715
+641.8502401788131,0.16518867512215588,0.14310708635263059

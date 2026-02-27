@@ -3,10 +3,7 @@ pyproject.toml
 src/hbn_pl/SPE3reading.py
 src/hbn_pl/__init__.py
 src/hbn_pl/classification2.py
-src/hbn_pl/core.py
-src/hbn_pl/energy.py
 src/hbn_pl/io.py
-src/hbn_pl/peaks.py
 src/hbn_pl/peaks2.py
 src/hbn_pl/plot.py
 src/hbn_pl/preprocess.py

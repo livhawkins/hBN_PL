@@ -246,57 +246,46 @@ def remove_cosmic_rays(frames: np.ndarray, cosmic_frames: list[int], sigma: floa
     print("Successfully removed cosmic rays.")
     return frames_clean
 
-def remove_cosmic_rays2(frames: np.ndarray, wavelength: np.ndarray,cosmic_frames: list[int],cosmic_location: dict[int, list[float]],sigma: float = 2.5,half_width: int = 3) -> np.ndarray:
-    '''
-    Newer method to remove cosmic rays only in small regions around detected cosmic ray wavelengths, rather than the whole spectrum. This is to avoid over-correction of real spectral features in the same frame.
-    Args:
-    frames (np.ndarray): background-corrected frames
-    wavelength (np.ndarray): 1D array of wavelength values corresponding to the spectral pixels
-    cosmic_frames (list[int]): indices of frames likely containing cosmic rays
-    cosmic_location (dict[int, list[float]]): mapping of frame index (int) to list of wavelengths where cosmic rays were detected
-    sigma (float): sigma parameter for spectrapepper.cosmicmed; lower sigma = more aggressive correction
-    half_width (int): number of pixels on either side of the detected cosmic ray wavelength to correct; higher = more aggressive correction
-
-    Returns:
-    np.ndarray: corrected frames with cosmic rays removed in small regions around detected wavelengths
-
-    '''
+def remove_cosmic_rays2(frames, wavelength, cosmic_frames, cosmic_location,
+                        sigma=2.5, half_width=3, show=True):
     print(f"Removing cosmic rays from {len(cosmic_frames)} frames: {cosmic_frames}")
-
-    if len(cosmic_frames) == 0:
-        return frames
-
     frames_clean = frames.copy()
-    n_frames = frames.shape[0]
+    cosmic_figs = []  # <-- define the list here
 
     for frame_idx in cosmic_frames:
+        # run cosmic ray correction as before
         if frame_idx == 0:
             spectra_list = [frames[frame_idx], frames[frame_idx + 1], frames[frame_idx + 2]]
-        elif frame_idx == n_frames - 1:
+        elif frame_idx == frames.shape[0] - 1:
             spectra_list = [frames[frame_idx - 2], frames[frame_idx - 1], frames[frame_idx]]
         else:
             spectra_list = [frames[frame_idx - 1], frames[frame_idx], frames[frame_idx + 1]]
 
-        # run cosmicmed once for the whole spectrum
         corrected = spep.cosmicmed(spectra_list, sigma=sigma)
         corrected_spectrum = corrected[1]
 
-        # only copy small regions around cosmic rays
         for wl in cosmic_location.get(frame_idx, []):
             mask = np.abs(wavelength - wl) <= half_width
             frames_clean[frame_idx, mask] = corrected_spectrum[mask]
 
-    # Optional plotting for sanity checks
-    for i in cosmic_frames:
-        plt.figure()
-        plt.plot(frames[i], label="Original", alpha=0.7)
-        plt.plot(frames_clean[i], label="Corrected", alpha=0.7)
-        plt.legend()
-        plt.title(f"Frame {i}")
-        plt.show()
+        # Plot comparison
+        fig, ax = plt.subplots()
+        ax.plot(wavelength, frames[frame_idx], label="Original", alpha=0.7)
+        ax.plot(wavelength, frames_clean[frame_idx], label="Corrected", alpha=0.7)
+        ax.legend()
+        ax.set_title(f"Frame {frame_idx}")
+        ax.set_xlabel("Wavelength")
+        ax.set_ylabel("Intensity")
 
-    print("Cosmic ray removal complete.")
-    return frames_clean
+        cosmic_figs.append(fig)
+
+        if show:
+            plt.show()
+        else:
+            plt.close(fig)
+
+    return frames_clean, cosmic_figs
+
 
 def background_subtract(frames: np.ndarray, bg_slice: tuple[int, int]) -> np.ndarray:
     '''
