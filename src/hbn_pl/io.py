@@ -4,6 +4,7 @@ from hbn_pl.SPE3reading import SPE3map
 import matplotlib.pyplot as plt
 import csv
 import hbn_pl.preprocess as preprocess
+import hbn_pl.plot as plot
 
 def load_spe(path: str) -> tuple[np.ndarray, np.ndarray]:
     '''
@@ -41,6 +42,43 @@ def load_spe(path: str) -> tuple[np.ndarray, np.ndarray]:
         raise ValueError("All spectral values are zero (corrupt or empty file)")
     
     return wavelength, frames
+
+import numpy as np
+from pathlib import Path
+
+def save_spectrum_and_interactive_html(spe_path, energy, intensity, fit_results, targets, window=8):
+    """
+    Save interactive Plotly spectrum and energy/intensity arrays from a .spe file.
+
+    Parameters
+    ----------
+    spe_path : str or Path
+        Path to original .spe file
+    energy : np.ndarray
+        Energy array (relative to ZPL, meV)
+    intensity : np.ndarray
+        Intensity array (normalized)
+    fit_results : list of dict
+        Output of fit_phonon_peak for each target
+    targets : list of float
+        Target phonon energies
+    window : float
+        Half-width of Gaussian fit window for plotting
+    """
+
+    spe_path = Path(spe_path)
+    base_name = spe_path.stem  # strip directory & extension
+
+    # -------- Save interactive HTML --------
+    html_filename = spe_path.parent / f"{base_name}_interactive.html"
+    plot.plot_psb_plotly(energy, intensity, fit_results, targets, window=window, filename=html_filename)
+
+    # -------- Save energy & intensity as npz --------
+    npz_filename = spe_path.parent / f"{base_name}_energy.npz"
+    np.savez(npz_filename, energy=energy, intensity=intensity)
+
+    print(f"Saved interactive plot: {html_filename}")
+    print(f"Saved energy/intensity arrays: {npz_filename}")
 
 
 #def output(input: type) -> what is the output form
@@ -145,7 +183,7 @@ def output(peakdata: dict,
     if wavelength is None or frames is None or plot is None:
         messages.append("Original frames not saved: wavelength, frames, or plot function missing.")
     else:
-        figs = plot.plot_frames(wavelength, frames, show=False)
+        figs = plot.plot_frames(frames, wavelength, show=False)
         for i, fig in enumerate(figs):
             fig.savefig(original_dir / f"{emitter_name}_frame_{i}.png")
         plt.close('all')
