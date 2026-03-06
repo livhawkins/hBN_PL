@@ -46,36 +46,90 @@ def load_spe(path: str) -> tuple[np.ndarray, np.ndarray]:
 import numpy as np
 from pathlib import Path
 
-def save_spectrum_and_interactive_html(spe_path, energy, intensity, fit_results, targets, window=8):
+
+import numpy as np
+import pandas as pd
+from pathlib import Path
+
+
+def save_results(spe_path: str, intensity: np.ndarray, energy: np.ndarray, fig, zpl_wavelength: float) -> None:
+    """
+    Save processed, cleaned spectrum, figure, and record ZPL wavelength into a common csv file in the folder.
+
+    Args:
+        spe_path : str
+            Path to original .spe file.
+        intensity : np.ndarray
+            Intensity array.
+        energy : np.ndarray
+            Energy array.
+        fig : matplotlib.figure.Figure
+            Figure object to save.
+        zpl_wavelength : float
+            ZPL wavelength in nm.
+    
+    Returns:
+        None: Saves .npz file with energy and intensity, figure as .png, and updates/creates CSV with ZPL wavelength.
+    """
+    spe_path = Path(spe_path)
+    base_name = spe_path.stem # strip directory & extension
+    folder = spe_path.parent
+
+    npz_path = folder / f"{base_name}_cleaned.npz" #path for energy and intensity arrays
+    png_path = folder / f"{base_name}_cleaned.png"
+    csv_path = folder / "ZPL_wavelengths.csv"
+
+    np.savez(npz_path, intensity=intensity, energy=energy, zpl_wavelength = zpl_wavelength, source_file = base_name) #save energy and intensity arrays as .npz file
+    fig.savefig(png_path, dpi=300, bbox_inches="tight")
+
+    #Update the csv file with the ZPL wavelength for this emitter. If the file doesn't exist, create it. If it exists, update the row for this emitter or add a new row if not present.
+    new_row = pd.DataFrame({
+        "filename": [base_name],
+        "zpl_wavelength_nm": [zpl_wavelength]
+    })
+
+    if csv_path.exists():
+        df = pd.read_csv(csv_path)
+
+        if base_name in df["filename"].values:
+            df.loc[df["filename"] == base_name, "zpl_wavelength_nm"] = zpl_wavelength
+        else:
+            df = pd.concat([df, new_row], ignore_index=True)
+
+    else:
+        df = new_row
+
+    df.to_csv(csv_path, index=False)
+
+    print(f"Saved: {npz_path}")
+    print(f"Saved: {png_path}")
+    print(f"Updated: {csv_path}")
+
+
+def save_spectrum_and_interactive_html(spe_path: Path, energy: np.ndarray, intensity: np.ndarray, fit_results: list, targets: list, window: float = 8) -> None:
     """
     Save interactive Plotly spectrum and energy/intensity arrays from a .spe file.
 
-    Parameters
-    ----------
-    spe_path : str or Path
-        Path to original .spe file
-    energy : np.ndarray
-        Energy array (relative to ZPL, meV)
-    intensity : np.ndarray
-        Intensity array (normalized)
-    fit_results : list of dict
-        Output of fit_phonon_peak for each target
-    targets : list of float
-        Target phonon energies
-    window : float
-        Half-width of Gaussian fit window for plotting
+    Args:
+        spe_path (Path): Path to original .spe file
+        energy (np.ndarray): Energy array (relative to ZPL, meV)
+        intensity (np.ndarray): Intensity array (normalized)
+        fit_results (list of dict): Output of fit_phonon_peak for each target
+        targets (list of float): Target phonon energies
+        window (float): Half-width of Gaussian fit window for plotting
+
+    Returns:
+        None: Saves interactive HTML and .npz files in same directory as input .spe file
     """
 
     spe_path = Path(spe_path)
     base_name = spe_path.stem  # strip directory & extension
 
-    # -------- Save interactive HTML --------
     html_filename = spe_path.parent / f"{base_name}_interactive.html"
-    plot.plot_psb_plotly(energy, intensity, fit_results, targets, window=window, filename=html_filename)
+    plot.plot_psb_plotly(energy, intensity, fit_results, targets, window=window, filename=html_filename) #Save interactive HTML
 
-    # -------- Save energy & intensity as npz --------
     npz_filename = spe_path.parent / f"{base_name}_energy.npz"
-    np.savez(npz_filename, energy=energy, intensity=intensity)
+    np.savez(npz_filename, energy=energy, intensity=intensity) #Save energy & intensity as npz
 
     print(f"Saved interactive plot: {html_filename}")
     print(f"Saved energy/intensity arrays: {npz_filename}")

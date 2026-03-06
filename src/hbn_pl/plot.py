@@ -1,21 +1,26 @@
 from pathlib import Path
 from turtle import color
-
 import matplotlib.pyplot as plt
 import numpy as np
+import plotly.graph_objects as go
 
-def plot_frames(frames, wavelength, show = True):
+def plot_frames(frames: np.ndarray, wavelength: np.ndarray, show: bool = True) -> list[plt.Figure]:
     """
     Plot all spectral frames for visualization.
 
     Args:
         wavelength (np.ndarray): 1D array of wavelength values.
         frames (np.ndarray): 2D array of spectral frames (num_frames x num_wavelengths).
+        show (bool): Whether to display the plots immediately. If False, returns a list of figure objects for later use.
+    
+    Returns:
+        list[plt.Figure]: List of matplotlib figure objects for each frame.
     """
+    plt.style.use('bmh')
     figs = []
     for i in range(frames.shape[0]):
         fig = plt.figure()
-        plt.plot(wavelength, frames[i])
+        plt.plot(wavelength, frames[i], color="#7A68A6")
         plt.title(f"Frame {i}")
         plt.xlabel('Wavelength (nm)')
         plt.ylabel('Intensity (counts)')
@@ -24,37 +29,6 @@ def plot_frames(frames, wavelength, show = True):
             plt.show()
     return figs
 
-def plot_cosmic_frames(frames: np.ndarray, wavelength: np.ndarray, cosmic_location: dict[int, list[float]]) -> None:
-    """
-    Plot frames identified as containing cosmic rays with markers for the detected cosmic ray locations.
-
-    Args:
-        frames (np.ndarray): 2D array of spectral frames (num_frames x num_wavelengths).
-        wavelength (np.ndarray): 1D array of wavelength values.
-        cosmic_location (dict): Dictionary mapping frame indices to lists of detected cosmic ray wavelengths.
-    """
-    for frame_idx, wl_list in cosmic_location.items():
-        spectrum = frames[frame_idx]
-        plt.plot(wavelength, spectrum, label="Spectrum")
-
-        for wl in wl_list:
-            pix = np.argmin(np.abs(wavelength - wl))
-            plt.plot(
-                wavelength[pix],
-                spectrum[pix],
-                marker="x",
-                color="red",
-                markersize=10,
-                mew=2,
-                label="Detected cosmic ray"
-            )
-
-        plt.xlabel("Wavelength (nm)")
-        plt.ylabel("Intensity")
-        plt.title(f"Cosmic Ray Frame {frame_idx}")
-        plt.legend()
-        plt.tight_layout()
-        plt.show()
 
 def plot_cosmic_frames(frames: np.ndarray, wavelength: np.ndarray, cosmic_location: dict[int, list[float]]) -> None:
     """
@@ -65,9 +39,10 @@ def plot_cosmic_frames(frames: np.ndarray, wavelength: np.ndarray, cosmic_locati
         wavelength (np.ndarray): 1D array of wavelength values.
         cosmic_location (dict): Dictionary mapping frame indices to lists of detected cosmic ray wavelengths.
     """
+    plt.style.use('bmh')
     for frame_idx, wl_list in cosmic_location.items():
         spectrum = frames[frame_idx]
-        plt.plot(wavelength, spectrum, label="Spectrum")
+        plt.plot(wavelength, spectrum, label="Spectrum", color="#7A68A6")
 
         for wl in wl_list:
             pix = np.argmin(np.abs(wavelength - wl))
@@ -89,26 +64,28 @@ def plot_cosmic_frames(frames: np.ndarray, wavelength: np.ndarray, cosmic_locati
         plt.show()
 
 
-def plot_spectrum(wavelength, spectrum, peaks=None, zpl=None, psb=None, outpath=None) -> None:
+def plot_spectrum(x: np.ndarray, spectrum: np.ndarray, peaks=None, zpl=None, psb=None, x_quantity="Wavelength (nm)", outpath=None) -> None:
     '''
     Plot a single spectrum with optional peak, ZPL, and PSB markers.
     Args:
         spectrum (np.ndarray): 1D array of spectral intensity values.
-        wavelength (np.ndarray): 1D array of wavelength values.
+        x (np.ndarray): 1D array of x-axis values. (wavelength or energy). Units are irrelevant as long as consistent with peaks, zpl, and psb. E.g. energy in meV, wavelength in nm etc.
         peaks (np.ndarray, optional): Indices of detected peaks in the spectrum.
         zpl (dict, optional): Dictionary with 'wl' and 'I' keys for ZPL marker.
         psb (dict, optional): Dictionary with 'wl' and 'I' keys for PSB marker.
+        x_quantity (str): Label for the x-axis.
         outpath (str or Path, optional): If provided, save the plot to this path.
 
     Returns:
         None
     ''' 
+    plt.style.use('bmh')
     plt.figure()
-    plt.plot(wavelength, spectrum, label="Spectrum")
+    plt.plot(x, spectrum, label="Spectrum")
 
     if peaks is not None and len(peaks) > 0:
         plt.plot(
-            wavelength[peaks],
+            x[peaks],
             spectrum[peaks],
             "x",
             color="red",
@@ -135,8 +112,8 @@ def plot_spectrum(wavelength, spectrum, peaks=None, zpl=None, psb=None, outpath=
             label="PSB",
         )
 
-    plt.xlabel("Wavelength (nm)")
-    plt.ylabel("Normalised PL intensity")
+    plt.xlabel(x_quantity)
+    plt.ylabel("PL intensity")
     plt.legend()
     plt.tight_layout()
 
@@ -147,37 +124,48 @@ def plot_spectrum(wavelength, spectrum, peaks=None, zpl=None, psb=None, outpath=
         plt.show()
 
 
-def plot_energy(frames: np.ndarray, wavelength: np.ndarray, zpl_wavelength: float) -> tuple[np.ndarray, np.ndarray]:
+def plot_energy(wavelength: np.ndarray, spectrum: np.ndarray, zpl_wavelength: float) -> tuple[np.ndarray, np.ndarray, plt.Figure]:
     """
     Plot energy spectrum centred on the ZPL.
 
     Args:
-        frames (np.ndarray): 1D array of normalised, averaged spectral frame.
         wavelength (np.ndarray): 1D array of wavelength values.
+        spectrum (np.ndarray): 1D array of spectral intensity values.
         zpl_wavelength (float): Wavelength of the ZPL to centre the plot.
 
     Returns:
-        tuple[np.ndarray, np.ndarray]: Tuple containing the intensity and corresponding energy values.
+        tuple[np.ndarray, np.ndarray, plt.Figure]: Tuple containing the intensity and corresponding energy values, and the matplotlib figure object to save later.
     """
+    plt.style.use('bmh')
     energy = 1239.84 / wavelength  # Convert wavelength to energy in eV for wavelength in nm units
     zpl_energy = 1239.84 / zpl_wavelength
     energy_offset = -1000*(energy - zpl_energy) #shift to ZPL = 0 eV and convert to meV
-    mask = (energy_offset >= -20) & (energy_offset <= 200)
+    mask = (energy_offset >= -20) & (energy_offset <= 200) #only really interested in -20 to 200 meV range for PSB
 
-    plt.figure()
-    plt.plot(energy_offset[mask], frames[mask])
-    plt.xlabel('Phonon energy (meV)')
-    plt.ylabel("Normalised PL Intensity")
-    plt.tight_layout()
-    plt.show()
-    return frames[mask], energy_offset[mask]
+    fig, ax = plt.subplots()
 
+    ax.plot(energy_offset[mask], spectrum[mask], color="#7A68A6")
+    ax.set_xlabel("Phonon energy (meV)")
+    ax.set_ylabel("Normalised PL Intensity")
 
-import plotly.graph_objects as go
-import numpy as np
+    fig.tight_layout()
 
-def plot_psb_plotly(energy, spectrum, fit_results, targets, window=8, filename="psb_interactive.html"):
+    return spectrum[mask], energy_offset[mask], fig
 
+def plot_psb_plotly(energy: np.ndarray, spectrum: np.ndarray, fit_results: list, targets: list, window: float = 8, filename: str = "psb_interactive.html") -> None:
+    '''
+    Plot the phonon sideband spectrum with interactive Plotly, overlaying Gaussian fits for each target phonon energy.
+    Args:
+        energy (np.ndarray): 1D array of energy values (meV).
+        spectrum (np.ndarray): 1D array of spectral intensity values.
+        fit_results (list): List of dictionaries containing fitted parameters for each phonon peak.
+        targets (list): List of target phonon energies corresponding to the fit results.
+        window (float): Half-width of fitting window (meV) for plotting the Gaussian fits.
+        filename (str): Filename to save the interactive plot as HTML.
+    
+    Returns:
+        None
+    '''
     fit_colors = [
         "#D62728",  # red
         "#1F77B4",  # blue
