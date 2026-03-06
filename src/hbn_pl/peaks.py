@@ -120,13 +120,10 @@ def extract_peak_parameters(x: np.ndarray, y: np.ndarray, peaks: np.ndarray, pro
 
     return peak_list
 
-import numpy as np
-import matplotlib.pyplot as plt
-
 
 def correct_spectrum(x: np.ndarray, spectrum: np.ndarray, peak_params: list[dict], plot: bool = True) -> np.ndarray:
     """
-    Remove weaker spectrally shifted replicas assuming identical lineshape.
+    Remove weaker spectrally shifted ZPL replicas assuming identical lineshape.
 
     Args:
         x : np.ndarray
@@ -134,7 +131,7 @@ def correct_spectrum(x: np.ndarray, spectrum: np.ndarray, peak_params: list[dict
         spectrum : np.ndarray
             Total spectrum.
         peak_params : list of dict
-            Output from extract_peak_parameters().
+            Output from extract_peak_parameters() with the ZPL candidates centered around tall ZPL wavelength.
         plot : bool
             If True, show diagnostic plot.
 
@@ -195,14 +192,14 @@ def correct_spectrum(x: np.ndarray, spectrum: np.ndarray, peak_params: list[dict
     return corrected_spectrum
 
 
-def fit_peak_gaussian(x: np.ndarray, y: np.ndarray, center_guess: float, window: float = 1.0) -> dict:
+def fit_peak_gaussian(x: np.ndarray, spectrum: np.ndarray, center_guess: float, window: float = 1.0) -> dict:
     """
     Fit a single peak with a Gaussian function within a specified window.
 
     Args:
         x : np.ndarray
             1D array of x-axis values. Units are irrelevant as long as consistent with center_guess and window. E.g. energy in meV, wavelength in nm etc.
-        y : np.ndarray
+        spectrum : np.ndarray
             1D array of corresponding y values. PL spectra can be in arbitrary units as long as consistent.
         center_guess : float
             Initial guess for peak center (in same units as x).
@@ -225,7 +222,7 @@ def fit_peak_gaussian(x: np.ndarray, y: np.ndarray, center_guess: float, window:
     # Select fitting window
     mask = (x > center_guess - window) & (x < center_guess + window)
     x_fit = x[mask]
-    y_fit = y[mask]
+    y_fit = spectrum[mask]
 
     if len(x_fit) < 5:
         raise ValueError(f"Not enough data near x = {center_guess}")

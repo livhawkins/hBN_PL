@@ -81,7 +81,7 @@ def plot_spectrum(x: np.ndarray, spectrum: np.ndarray, peaks=None, zpl=None, psb
     ''' 
     plt.style.use('bmh')
     plt.figure()
-    plt.plot(x, spectrum, label="Spectrum")
+    plt.plot(x, spectrum, color="#7A68A6", label="Spectrum")
 
     if peaks is not None and len(peaks) > 0:
         plt.plot(
