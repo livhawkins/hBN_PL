@@ -191,24 +191,35 @@ def correct_spectrum(x: np.ndarray, spectrum: np.ndarray, peak_params: list[dict
 
     return corrected_spectrum
 
+import numpy as np
+from scipy.optimize import curve_fit
 
-def fit_peak_gaussian(x: np.ndarray, spectrum: np.ndarray, center_guess: float, window: float = 1.0) -> dict:
+def fit_peak_gaussian(x: np.ndarray, spectrum: np.ndarray, center_guess: float, window: float = 1.0, sigma_guess: float | None = None,
+    amplitude_guess: float | None = None, background_guess: float | None = None, bounds: tuple | None = None) -> dict:
     """
     Fit a single peak with a Gaussian function within a specified window.
 
     Args:
         x : np.ndarray
-            1D array of x-axis values. Units are irrelevant as long as consistent with center_guess and window. E.g. energy in meV, wavelength in nm etc.
+            x-axis values
         spectrum : np.ndarray
-            1D array of corresponding y values. PL spectra can be in arbitrary units as long as consistent.
+            y-axis values
         center_guess : float
-            Initial guess for peak center (in same units as x).
-        window : float, optional
-            Half-width of the fitting window around center_guess (same units as x).
+            Initial guess for peak center
+        window : float
+            Half width of fitting region
+        sigma_guess : float, optional
+            Initial guess for Gaussian sigma
+        amplitude_guess : float, optional
+            Initial guess for amplitude
+        background_guess : float, optional
+            Initial guess for constant background
+        bounds : tuple, optional
+            Bounds for curve_fit parameters
+            Format: ([A_min, c_min, s_min, b_min], [A_max, c_max, s_max, b_max])
 
     Returns:
-        dict
-            Dictionary containing fitted parameters:
+        Dictionary containing fitted parameters:
             - center
             - center_err
             - amplitude
@@ -227,22 +238,36 @@ def fit_peak_gaussian(x: np.ndarray, spectrum: np.ndarray, center_guess: float, 
     if len(x_fit) < 5:
         raise ValueError(f"Not enough data near x = {center_guess}")
 
-    # Initial parameter guesses
-    amplitude0 = np.max(y_fit) - np.min(y_fit)
-    sigma0 = window / 3
-    background0 = np.min(y_fit)
+    # Default guesses
+    if amplitude_guess is None:
+        amplitude_guess = np.max(y_fit) - np.min(y_fit)
 
-    p0 = [amplitude0, center_guess, sigma0, background0]
+    if sigma_guess is None:
+        sigma_guess = window / 3
 
-    popt, pcov = curve_fit(gaussian, x_fit, y_fit, p0=p0)
+    if background_guess is None:
+        background_guess = np.min(y_fit)
+
+    p0 = [amplitude_guess, center_guess, sigma_guess, background_guess]
+
+    # Default bounds (very flexible)
+    if bounds is None:
+        bounds = (
+            [0, center_guess - window, 0, -np.inf],
+            [np.inf, center_guess + window, np.inf, np.inf]
+        )
+
+    popt, pcov = curve_fit(gaussian, x_fit, y_fit, p0=p0, bounds=bounds)
+
     amplitude, center, sigma, background = popt
+    perr = np.sqrt(np.diag(pcov))
 
-    center_err = np.sqrt(np.diag(pcov))[1]
-
-    return {
+    result = {
         "center": center,
-        "center_err": center_err,
+        "center_err": perr[1],
         "amplitude": amplitude,
         "sigma": sigma,
         "background": background,
     }
+
+    return result
