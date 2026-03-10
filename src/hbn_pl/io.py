@@ -1,10 +1,6 @@
 import numpy as np
 from pathlib import Path
 from hbn_pl.SPE3reading import SPE3map
-import matplotlib.pyplot as plt
-import csv
-import hbn_pl.preprocess as preprocess
-import hbn_pl.plot as plot
 import pandas as pd
 
 def load_spe(path: str) -> tuple[np.ndarray, np.ndarray]:
@@ -97,33 +93,4 @@ def save_preprocess_results(spe_path: str, intensity: np.ndarray, energy: np.nda
     print(f"Saved: {npz_path}")
     print(f"Saved: {png_path}")
     print(f"Updated: {csv_path}")
-
-
-def save_spectrum_and_interactive_html(spe_path: Path, energy: np.ndarray, intensity: np.ndarray, fit_results: list, targets: list, window: float = 8) -> None:
-    """
-    Save interactive Plotly spectrum and energy/intensity arrays from a .spe file.
-
-    Args:
-        spe_path (Path): Path to original .spe file
-        energy (np.ndarray): Energy array (relative to ZPL, meV)
-        intensity (np.ndarray): Intensity array (normalized)
-        fit_results (list of dict): Output of fit_phonon_peak for each target
-        targets (list of float): Target phonon energies
-        window (float): Half-width of Gaussian fit window for plotting
-
-    Returns:
-        None: Saves interactive HTML and .npz files in same directory as input .spe file
-    """
-
-    spe_path = Path(spe_path)
-    base_name = spe_path.stem  # strip directory & extension
-
-    html_filename = spe_path.parent / f"{base_name}_interactive.html"
-    plot.plot_psb_plotly(energy, intensity, fit_results, targets, window=window, filename=html_filename) #Save interactive HTML
-
-    npz_filename = spe_path.parent / f"{base_name}_energy.npz"
-    np.savez(npz_filename, energy=energy, intensity=intensity) #Save energy & intensity as npz
-
-    print(f"Saved interactive plot: {html_filename}")
-    print(f"Saved energy/intensity arrays: {npz_filename}")
 

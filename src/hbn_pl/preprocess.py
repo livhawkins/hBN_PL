@@ -10,8 +10,9 @@ import matplotlib.pyplot as plt
 #4. remove bad frames from un-normalised frames 
 # (now no cosmic rays so easier for median comparison) 
 # - NOT on normalised frames because we need to detect when emitter dies/blinks
-#5. average cleaned frames into a single frame
-#6. normalise averaged spectrum
+#5. Align ZPL to most common wavelength to compensate for spectral jumping
+#6. average cleaned frames into a single frame
+#7. normalise averaged spectrum
 
 def background_subtract(frames: np.ndarray, bg_slice: tuple[int, int]) -> np.ndarray:
     '''
@@ -291,6 +292,71 @@ def remove_cosmic_rays(frames: np.ndarray, wavelength: np.ndarray, cosmic_frames
 
     return frames_clean, cosmic_figs
 
+def align_zpl(frames: np.ndarray, wavelength: np.ndarray, bins=50, plot=True)-> tuple[np.ndarray, np.ndarray, float]:
+    """
+    Align spectra by shifting their ZPL to the most common wavelength.
+
+    Args:
+        frames : array-like
+            2D array of spectra (n_frames, n_wavelengths)
+        wavelength : array-like
+            Wavelength axis
+        bins : int
+            Number of histogram bins
+        plot : bool
+            Whether to plot the ZPL histogram
+
+    Returns:
+        aligned_frames : np.ndarray
+            Spectra aligned to the reference ZPL
+        zpls : np.ndarray
+            ZPL wavelength detected for each frame
+        ref_zpl : float
+            Most common ZPL wavelength
+    """
+
+    frames = np.array(frames)
+    zpls = []
+
+    # Find ZPL for each frame
+    for frame in frames:
+        max_index = np.argmax(frame)
+        zpl_wavelength = wavelength[max_index]
+        zpls.append(zpl_wavelength)
+
+    zpls = np.array(zpls)
+
+    # Create histogram of ZPL positions
+    hist, bin_edges = np.histogram(zpls, bins=bins)
+    bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+
+    # Most common ZPL (mode)
+    ref_zpl = bin_centers[np.argmax(hist)]
+
+    # Plot histogram
+    if plot:
+        plt.figure()
+        plt.hist(zpls, bins=bins)
+        plt.axvline(ref_zpl, linestyle='--', label=f"Reference ZPL = {ref_zpl:.3f}")
+        plt.xlabel("ZPL Wavelength")
+        plt.ylabel("Counts")
+        plt.title("ZPL Distribution Across Frames")
+        plt.legend()
+        plt.show()
+
+    # Align spectra
+    aligned_frames = []
+    pixel_step = wavelength[1] - wavelength[0]
+
+    for frame, zpl in zip(frames, zpls):
+        shift = ref_zpl - zpl
+        shift_pixels = int(round(shift / pixel_step))
+        aligned = np.roll(frame, shift_pixels)
+        aligned_frames.append(aligned)
+
+    aligned_frames = np.array(aligned_frames)
+
+    return aligned_frames, zpls, ref_zpl
 
 def normalise(frames: np.ndarray) -> np.ndarray:
     '''
@@ -323,3 +389,74 @@ def average_and_normalise(frames: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     avg_norm = avg / (max_val + 1e-20)
     print("Successfully averaged and normalised frames.")   
     return avg, avg_norm
+
+
+def correct_spectrum(x: np.ndarray, spectrum: np.ndarray, peak_params: list[dict], plot: bool = True) -> np.ndarray:
+    """
+    Remove weaker spectrally shifted ZPL replicas assuming identical lineshape.
+
+    Args:
+        x : np.ndarray
+            x-axis values (e.g. wavelength).
+        spectrum : np.ndarray
+            Total spectrum.
+        peak_params : list of dict
+            Output from extract_peak_parameters() with the ZPL candidates centered around tall ZPL wavelength.
+        plot : bool
+            If True, show diagnostic plot.
+
+    Returns:
+        np.ndarray
+            Corrected spectrum.
+    """
+    print("Performing multi-ZPL correction...")
+    total_spectrum = spectrum.copy()
+    corrected_spectrum = spectrum.copy()
+
+    if len(peak_params) < 2:
+        raise ValueError("Need at least two ZPLs for correction.")
+
+    # Sort by intensity (ascending)
+    peaks_sorted = sorted(peak_params, key=lambda p: p["intensity"])
+
+    # Strongest ZPL = last element
+    reference_peak = peaks_sorted[-1]
+    lambda_ref = reference_peak["location"]
+    I_ref = reference_peak["intensity"]
+
+    cumulative_subtraction = np.zeros_like(spectrum)
+
+    # Loop over all weaker peaks
+    for peak in peaks_sorted[:-1]:
+
+        lambda_i = peak["location"]
+        I_i = peak["intensity"]
+
+        weight = I_i / I_ref
+        shift = lambda_i - lambda_ref
+
+        shifted = weight * np.interp(
+            x,
+            x + shift,
+            total_spectrum,
+            left=0,
+            right=0
+        )
+
+        cumulative_subtraction += shifted
+
+    corrected_spectrum = total_spectrum - cumulative_subtraction
+    corrected_spectrum = np.clip(corrected_spectrum, 0, None)
+    print("Correction complete.")
+    if plot:
+        plt.figure(figsize=(10, 6))
+        plt.plot(x, total_spectrum, label="Original Spectrum")
+        plt.plot(x, cumulative_subtraction, label="Total Subtracted Contribution")
+        plt.plot(x, corrected_spectrum, label="Corrected Spectrum")
+        plt.xlabel("Wavelength (nm)")
+        plt.ylabel("Normalised Intensity")
+        plt.legend()
+        plt.title("Multi-ZPL Removal")
+        plt.show()
+
+    return corrected_spectrum
