@@ -1,5 +1,4 @@
 from pathlib import Path
-from turtle import color
 import matplotlib.pyplot as plt
 import numpy as np
 import plotly.graph_objects as go
@@ -114,7 +113,6 @@ def plot_spectrum(x: np.ndarray, spectrum: np.ndarray, peaks=None, zpl=None, psb
 
     plt.xlabel(x_quantity)
     plt.ylabel("PL intensity")
-    plt.legend()
     plt.tight_layout()
 
     if outpath is not None:
@@ -151,6 +149,7 @@ def plot_energy(wavelength: np.ndarray, spectrum: np.ndarray, zpl_wavelength: fl
     fig.tight_layout()
 
     return spectrum[mask], energy_offset[mask], fig
+
 
 def plot_psb_plotly(energy: np.ndarray, spectrum: np.ndarray, fit_results: list, targets: list, window: float = 8, filename: str = "psb_interactive.html") -> None:
     '''

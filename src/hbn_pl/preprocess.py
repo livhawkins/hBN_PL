@@ -316,6 +316,12 @@ def align_zpl(frames: np.ndarray, wavelength: np.ndarray, bins=50, plot=True)-> 
     """
 
     frames = np.array(frames)
+    # If only one frame, return unchanged since no alignment can be done
+    if frames.shape[0] == 1:
+        zpl_index = np.argmax(frames)
+        zpl_wavelength = wavelength[zpl_index]
+        return frames, np.array([zpl_wavelength]), zpl_wavelength
+    
     zpls = []
 
     # Find ZPL for each frame
